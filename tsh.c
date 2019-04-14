@@ -165,6 +165,7 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
+
 	char *argv[MAXARGS]; //Argument list execve()
 	char buf[MAXLINE];   //holds modified command line
 	int bg;              //should the job run in bg or fg?
@@ -172,12 +173,12 @@ void eval(char *cmdline)
 	
 	strcpy(buf,cmdline);
 	bg = parseline(buf,argv);
-	if(srgv[0] == NULL) return; //ignore empty lines
+	if(argv[0] == NULL) return; //ignore empty lines
 	
-	if(!builtin_command(argv)) {
-		if((pid = Fork()) == 0) {       //child runs user job
+	if(!builtin_cmd(argv)) {
+		if((pid = fork()) == 0) {       //child runs user job
 			if(execve(argv[0], argv, environ) < 0) {
-				pringf("%s: Command not found.\n", argv[0]);
+				printf("%s: Command not found.\n", argv[0]);
 				exit(0);
 			}
 		}
@@ -191,7 +192,7 @@ void eval(char *cmdline)
 		else 
 			printf("%d %s", pid, cmdline);
 	}	
-    return;
+	return;
 }
 
 /* 
@@ -547,6 +548,5 @@ void sigquit_handler(int sig)
     printf("Terminating after receipt of SIGQUIT signal\n");
     exit(1);
 }
-
 
 
