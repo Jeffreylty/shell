@@ -283,13 +283,22 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
-
-
-
+	struct job_t * process_job;
 	if(argv[1]==NULL){
 		printf("%s command requires PID or %%jobid argument\n", argv[0]);
+	}else if(argv[1][0] == '%'){
+		process_job = getjobjid(jobs,atoi(argv[1]+1));
+		if(process_job ==NULL){
+			printf("(No such process");
+		}
+	}else if(1){
+		pid_t temp = atoi(argv[1]);
+		process_job = getjobpid(jobs, temp);
+		if(process_job ==NULL){
+			printf("(%s): No such process\n", argv[1]);
+		}
 	}else{
-		
+		printf("%s: argument must be a PID or %%jobid\n", argv[0]);
 	}
 
 	
@@ -327,13 +336,13 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
-    int pid;
-    pid = fgpid(jobs);
-    if(pid) {
-	kill(-pid,SIGINT);
-	printf("Job [%d] (%d) terminated by signal %d", getjobpid(jobs, pid).jid, pid, SIGINT);
-    }
-    return;
+	int pid;
+	pid = fgpid(jobs);
+	if(pid) {
+		printf("Job [%d] (%d) terminated by signal %d", getjobpid(jobs, pid)->jid, pid, SIGINT);
+		kill(-pid,SIGINT);    	
+	}
+	return;
 }
 
 /*
