@@ -283,6 +283,16 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
+
+
+
+	if(argv[1]==NULL){
+		printf("%s command requires PID or %%jobid argument\n", argv[0]);
+	}else{
+		
+	}
+
+	
     return;
 }
 
