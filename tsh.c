@@ -165,6 +165,32 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
+	char *argv[MAXARGS]; //Argument list execve()
+	char buf[MAXLINE];   //holds modified command line
+	int bg;              //should the job run in bg or fg?
+	pid_t pid;           //process id
+	
+	strcpy(buf,cmdline);
+	bg = parseline(buf,argv);
+	if(srgv[0] == NULL) return; //ignore empty lines
+	
+	if(!builtin_command(argv)) {
+		if((pid = Fork()) == 0) {       //child runs user job
+			if(execve(argv[0], argv, environ) < 0) {
+				pringf("%s: Command not found.\n", argv[0]);
+				exit(0);
+			}
+		}
+		
+		//parent waits for foreground job to terminate
+		if(!bg) {
+			int status;
+			if(waitpid(pid, &status, 0) < 0)
+				unix_error("waitfg: waitpid error");
+		}
+		else 
+			printf("%d %s", pid, cmdline);
+	}	
     return;
 }
 
