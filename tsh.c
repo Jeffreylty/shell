@@ -169,18 +169,36 @@ void eval(char *cmdline)
 	char buf[MAXLINE];   //holds modified command line
 	int bg;              //should the job run in bg or fg?
 	pid_t pid;           //process id
+	sigset_t mask;       //mask for signal
 	
 	strcpy(buf,cmdline);
 	bg = parseline(buf,argv);
-	if(argv[0] == NULL) return; //ignore empty lines
 	
+	//ignore empty lines
+	if(argv[0] == NULL) return;
+	
+	//not a build in cmd
 	if(!builtin_cmd(argv)) {
-		if((pid = fork()) == 0) {       //child runs user job
+		//block the SIGCHLD signal
+		sigemptyset(&mask);
+		sigaddset(&mask, SIGCHLD);
+		sigprocmask(SIG_BLOCK, &mask, NULL);
+		
+		//child runs user job
+		if((pid = fork()) == 0) {
+			sigprocmask(SIG_UNBLOCK, &mask, NULL);  //unblock the SIGCHLD signal in child
+			setpgid(0, 0);                         //put the child in a new process group
 			if(execve(argv[0], argv, environ) < 0) {
-				printf("%s: Command not found.\n", argv[0]);
+				printf("%s: Command not found\n", argv[0]);
 				exit(0);
 			}
 		}
+		
+		//add job into jobs
+		addjob(jobs, pid, bg?BG:FG, cmdline);
+		
+		//unblock the SIGCHLD signal in parent
+		sigprocmask(SIG_UNBLOCK, &mask, NULL);
 		
 		//parent waits for foreground job to terminate
 		if(!bg) {
@@ -189,7 +207,7 @@ void eval(char *cmdline)
 				unix_error("waitfg: waitpid error");
 		}
 		else 
-			printf("%d %s", pid, cmdline);
+			printf("[%d] (%d) %s\n", pid2jid(pid), pid, cmdline);
 	}	
 	return;
 }
