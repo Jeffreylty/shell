@@ -356,7 +356,7 @@ void waitfg(pid_t pid)
 void sigchld_handler(int sig) 
 {
     pid_t pid;
-    struct job_t *job;
+    struct job_t *job =NULL;
     int status;
     
     while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
