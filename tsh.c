@@ -202,9 +202,15 @@ void eval(char *cmdline)
         
         //parent waits for foreground job to terminate
         if(!bg) {
-            int status;
-            if(waitpid(pid, &status, 0) < 0)
-                unix_error("waitfg: waitpid error");
+//            int status;
+//            if(waitpid(pid, &status, 0) < 0)
+//                unix_error("waitfg: waitpid error");
+		tcsetpgrp(STDIN_FILENO, pid);
+    //tcsetpgrp(STDOUT_FILENO,pid);
+    /* Use waitfg to wait until proc(pid) is no longer a foreground proc. */
+    waitfg(pid);
+    tcsetpgrp(STDIN_FILENO, getpid());
+    //tcsetpgrp(STDOUT_FILENO,getpid());
         }
         else
             printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
