@@ -182,11 +182,11 @@ void eval(char *cmdline)
         //block the SIGCHLD signal
         sigemptyset(&mask);
         sigaddset(&mask, SIGCHLD);
-        sigprocmask(SIG_BLOCK, &mask, NULL);
+        sigprocmask(SIG_BLOCK, &mask, 0);
         
         //child runs user job
         if((pid = fork()) == 0) {
-            sigprocmask(SIG_UNBLOCK, &mask, NULL);  //unblock the SIGCHLD signal in child
+            sigprocmask(SIG_UNBLOCK, &mask, 0);  //unblock the SIGCHLD signal in child
             setpgid(0, 0);                         //put the child in a new process group
             if(execve(argv[0], argv, environ) < 0) {
                 printf("%s: Command not found\n", argv[0]);
@@ -202,20 +202,14 @@ void eval(char *cmdline)
         
         //parent waits for foreground job to terminate
         if(!bg) {
-//            int status;
-//            if(waitpid(pid, &status, 0) < 0)
-//                unix_error("waitfg: waitpid error");
-		tcsetpgrp(STDIN_FILENO, pid);
-    //tcsetpgrp(STDOUT_FILENO,pid);
-    /* Use waitfg to wait until proc(pid) is no longer a foreground proc. */
-    waitfg(pid);
-    tcsetpgrp(STDIN_FILENO, getpid());
-    //tcsetpgrp(STDOUT_FILENO,getpid());
+            int status;
+            if(waitpid(pid, &status, 0) < 0)
+                unix_error("waitfg: waitpid error");
         }
         else
             printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
     }
-    return;
+return;
 }
 
 /* 
@@ -344,7 +338,9 @@ void do_bgfg(char **argv)
 void waitfg(pid_t pid)
 {
     struct job_t * process_job =getjobpid(jobs, pid);
-    while(process_job!=NULL){}
+    while(process_job->state == FG){
+	sleep(1);
+}
     return;
 }
 
@@ -364,8 +360,9 @@ void sigchld_handler(int sig)
     pid_t pid;
     struct job_t *job =NULL;
     int status;
-    
+
     while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
+printf("Terminating\n");
         //when it terminates normally
         if(WIFEXITED(status)){
             deletejob(jobs, pid);
