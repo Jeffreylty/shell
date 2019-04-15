@@ -165,7 +165,6 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
-
 	char *argv[MAXARGS]; //Argument list execve()
 	char buf[MAXLINE];   //holds modified command line
 	int bg;              //should the job run in bg or fg?
@@ -284,23 +283,22 @@ int builtin_cmd(char **argv)
 void do_bgfg(char **argv) 
 {
 	struct job_t * process_job;
-	if(argv[1]==NULL){
+	if(argv[1] == NULL){
 		printf("%s command requires PID or %%jobid argument\n", argv[0]);
 	}else if(argv[1][0] == '%'){
 		process_job = getjobjid(jobs,atoi(argv[1]+1));
-		if(process_job ==NULL){
-			printf("(No such process");
+		if(process_job == NULL){
+			printf("No such process\n");
 		}
 	}else if(1){
 		pid_t temp = atoi(argv[1]);
 		process_job = getjobpid(jobs, temp);
-		if(process_job ==NULL){
+		if(process_job == NULL){
 			printf("(%s): No such process\n", argv[1]);
 		}
 	}else{
 		printf("%s: argument must be a PID or %%jobid\n", argv[0]);
 	}
-
 	
     return;
 }
@@ -326,6 +324,34 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig) 
 {
+	pid_t pid;
+	struct job_t *job;
+	int status;
+
+	while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
+		//when it terminates normally
+		if(WIFEXITED(status)){
+			deletejob(jobs, pid);
+		}
+
+		//when it stops because it received a SIGSTOP signal
+		if(WIFSIGNALED(status)){
+			printf("Job [%d] (%d) terminated by signal %d\n", jid, pid, WTERMSIG(status));
+			deletejob(jobs, pid);
+		}
+
+		//when it stops because it received a SIGTSTP signal
+		if(WIFSTOPPED(status)){
+			printf("Job [%d] (%d) stopped by signal %d\n", jid, pid, WSTOPSIG(status));
+			job = getjobpid(jobs, pid);
+			job->state = ST;
+		}
+	}
+
+    if(errno != ECHILD){ 
+        unix_error("waitpid error");
+    }
+	
     return;
 }
 
@@ -336,13 +362,12 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
-	int pid;
+	pid_t pid;
 	pid = fgpid(jobs);
 	if(pid) {
-		printf("Job [%d] (%d) terminated by signal %d", getjobpid(jobs, pid)->jid, pid, SIGINT);
-		kill(-pid,SIGINT);    	
+		kill(-pid,SIGINT);
 	}
-	return;
+    return;
 }
 
 /*
@@ -352,6 +377,11 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
+	pid_t pid;
+    pid = fgpid(jobs);
+    if(pid){
+        kill(-pid, SIGTSTP);
+    }
     return;
 }
 
@@ -573,5 +603,3 @@ void sigquit_handler(int sig)
     printf("Terminating after receipt of SIGQUIT signal\n");
     exit(1);
 }
-
-
