@@ -1,7 +1,7 @@
 /* 
  * tsh - A tiny shell program with job control
- * Name:Tianyi Liu  ID:tliu31
- * Name:Canruo Zou  ID:czou3
+ * Name:Tianyi Liu  ID:tliu31 Email: tliu31@u.rochester.edu
+ * Name:Canruo Zou  ID:czou3  Email: czou3@u.rochester.edu
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -301,31 +301,30 @@ int builtin_cmd(char **argv)
 void do_bgfg(char **argv) 
 {
 	struct job_t * process_job = NULL;
-	if(argv[1]==NULL){ /* if the input arguments only has one argumnent, thenprint the following */
+	if(argv[1]==NULL){ /* if the input arguments only has one argumnent, then print the following */
 		printf("%s command requires PID or %%jobid argument\n", argv[0]);
-	}else if(argv[1][0] == '%'){
+	}else if(argv[1][0] == '%'){ /* else if the given argument is a jid, then get the job from the jobs list.*/
 		process_job = getjobjid(jobs,atoi(argv[1]+1));
-		if(process_job ==NULL){
-            printf("%s: No such job\n",argv[1]);
+		if(process_job == NULL){
+            		printf("%s: No such job\n",argv[1]);
 		}
-	}else if(isdigit(argv[1][0])){
+	}else if(isdigit(argv[1][0])){/* else if the given argument is a pid, then get the job from the jobs list.*/
 		pid_t temp = atoi(argv[1]);
 		process_job = getjobpid(jobs, temp);
-		if(process_job ==NULL){
+		if(process_job == NULL){
 			printf("(%s): No such process\n", argv[1]);
 		}
-	}else{
+	}else{//if not apropriate case, then print the following
 		printf("%s: argument must be a PID or %%jobid\n", argv[0]);
 	}
     
-    if(process_job != NULL){
+    if(process_job != NULL){ /* if we get the job of the given pid or jid */
         kill(0-(process_job->pid),SIGCONT); /* SIGCONT is sent to every process in the process group whose ID is pid */
-        if(strcmp(argv[0], "bg") == 0){
+        if(strcmp(argv[0], "bg") == 0){/* if it's bg, then print the following */
             process_job-> state = BG;
             printf("[%d] (%d) %s", process_job->jid, process_job->pid, process_job->cmdline);
-        }else{
+        }else{/* if it's fg, then wait for the job we bring to the foreground to terminate.*/
             process_job-> state = FG;
-            //printf("Job [%d] (%d) %s", process_job->jid, process_job->pid, process_job->cmdline);
 		waitfg(process_job->pid);
         }
     }
@@ -338,8 +337,8 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
-    struct job_t * process_job =getjobpid(jobs, pid);
-    while(process_job->state == FG){
+    struct job_t * process_job =getjobpid(jobs, pid); // get the job by the pid from the job list
+    while(process_job->state == FG){/*if it's still in foregroung, then sleep for 1 second and check it agian until it finished */
 	sleep(1);
 }
     return;
@@ -396,7 +395,7 @@ void sigint_handler(int sig)
     pid_t pid;
     pid = fgpid(jobs);
     if(pid) {
-        kill(-pid, SIGINT);
+        kill(-pid, SIGINT); //catch the signal and send it to the job
     }
     return;
 }
@@ -411,7 +410,7 @@ void sigtstp_handler(int sig)
     pid_t pid;
     pid = fgpid(jobs);
     if(pid){
-        kill(-pid, SIGTSTP);
+        kill(-pid, SIGTSTP); //catch the signal and send it to the job
     }
     return;
 }
