@@ -186,30 +186,30 @@ void eval(char *cmdline)
         
         //child runs user job
         if((pid = fork()) == 0) {
+	    setpgid(0, 0);                       //put the child in a new process group
             sigprocmask(SIG_UNBLOCK, &mask, 0);  //unblock the SIGCHLD signal in child
-            setpgid(0, 0);                         //put the child in a new process group
+            
             if(execve(argv[0], argv, environ) < 0) {
                 printf("%s: Command not found\n", argv[0]);
                 exit(0);
             }
-        }
-        
-        //add job into jobs
-        addjob(jobs, pid, bg?BG:FG, cmdline);
-        
-        //unblock the SIGCHLD signal in parent
-        sigprocmask(SIG_UNBLOCK, &mask, NULL);
-        
-        //parent waits for foreground job to terminate
-        if(!bg) {
-            int status;
-            if(waitpid(pid, &status, 0) < 0)
-                unix_error("waitfg: waitpid error");
-        }
-        else
-            printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
+        }else if (pid > 0) {
+	    //add job into jobs
+	    addjob(jobs, pid, bg?BG:FG, cmdline);
+	    //unblock the SIGCHLD signal in parent
+	    sigprocmask(SIG_UNBLOCK, &mask, NULL);
+                
+            //parent waits for foreground job to terminate
+            if(!bg) {
+		waitfg(pid);
+            }
+	    //print the job
+            else{
+                printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
+	    }
+	}
     }
-return;
+    return;
 }
 
 /* 
@@ -325,7 +325,8 @@ void do_bgfg(char **argv)
             printf("[%d] (%d) %s", process_job->jid, process_job->pid, process_job->cmdline);
         }else{
             process_job-> state = FG;
-            printf("Job [%d] (%d) %s", process_job->jid, process_job->pid, process_job->cmdline);
+            //printf("Job [%d] (%d) %s", process_job->jid, process_job->pid, process_job->cmdline);
+		waitfg(process_job->pid);
         }
     }
 	
@@ -358,11 +359,12 @@ void waitfg(pid_t pid)
 void sigchld_handler(int sig) 
 {
     pid_t pid;
-    struct job_t *job =NULL;
+    struct job_t *job;
     int status;
 
     while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
-printf("Terminating\n");
+	job = getjobpid(jobs,pid);
+
         //when it terminates normally
         if(WIFEXITED(status)){
             deletejob(jobs, pid);
@@ -377,13 +379,8 @@ printf("Terminating\n");
         //when it stops because it received a SIGTSTP signal
         if(WIFSTOPPED(status)){
             printf("Job [%d] (%d) stopped by signal %d\n", job->jid, pid, WSTOPSIG(status));
-            job = getjobpid(jobs, pid);
             job->state = ST;
         }
-    }
-    
-    if(errno != ECHILD){
-        unix_error("waitpid error");
     }
     
     return;
@@ -399,7 +396,7 @@ void sigint_handler(int sig)
     pid_t pid;
     pid = fgpid(jobs);
     if(pid) {
-        kill(-pid,SIGINT);
+        kill(-pid, SIGINT);
     }
     return;
 }
