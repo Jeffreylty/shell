@@ -301,10 +301,12 @@ int builtin_cmd(char **argv)
 void do_bgfg(char **argv) 
 {
 	struct job_t * process_job = NULL;
+
 	if(argv[1]==NULL){ /* if the input arguments only has one argumnent, then print the following */
 		printf("%s command requires PID or %%jobid argument\n", argv[0]);
 	}else if(argv[1][0] == '%'){ /* else if the given argument is a jid, then get the job from the jobs list.*/
 		process_job = getjobjid(jobs,atoi(argv[1]+1));
+
 		if(process_job == NULL){
             		printf("%s: No such job\n",argv[1]);
 		}
@@ -318,6 +320,7 @@ void do_bgfg(char **argv)
 		printf("%s: argument must be a PID or %%jobid\n", argv[0]);
 	}
     
+
     if(process_job != NULL){ /* if we get the job of the given pid or jid */
         kill(0-(process_job->pid),SIGCONT); /* SIGCONT is sent to every process in the process group whose ID is pid */
         if(strcmp(argv[0], "bg") == 0){/* if it's bg, then print the following */
